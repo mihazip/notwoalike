@@ -158,12 +158,11 @@ h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
 .lg-dot{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink2)}
 .lg-dot i{width:9px;height:9px;border-radius:50%;display:block;background:var(--nodataInk)}
 
-footer{margin-top:22px; padding-top:16px; border-top:1px solid var(--hair2); font-size:12px; color:var(--muted); max-width:74ch}
+footer{margin-top:22px; padding-top:16px; border-top:1px solid var(--hair2); font-size:12px; color:var(--muted)}
 footer b{color:var(--ink2); font-weight:600}
-.under{display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px 48px; align-items:start}
-.under .gaps{margin-top:14px; font-size:12px; color:var(--muted); max-width:74ch}
-.under .gaps b{color:var(--ink2); font-weight:600}
-@media (max-width:760px){ .under{grid-template-columns:1fr} .under .gaps{margin-top:0} }
+footer{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 48px; max-width:none}
+footer p,footer .gaps{margin:0; max-width:74ch}
+@media (max-width:760px){ footer{grid-template-columns:1fr} }
 
 .credits{
   margin-top:26px; border:1px solid var(--hair); border-radius:10px;
@@ -252,13 +251,11 @@ footer b{color:var(--ink2); font-weight:600}
     <svg id="map" role="img" aria-label="World map of ethnic, linguistic and religious fractionalization"></svg>
   </div>
 
-  <div class="under">
-    <div class="legend" id="legend"></div>
-    <div class="gaps"><b>Gaps in the source.</b> 211 countries and territories; 43 too small to draw are shown as dots. Ethnic is missing for 24 (incl. Yemen, Palestine, Comoros, Timor-Leste), linguistic for 15 (incl. Serbia, Cuba, Rwanda, Haiti), religious for 1 (Serbia). Missing is drawn as hatch, never as zero.</div>
-  </div>
+  <div class="legend" id="legend"></div>
 
   <footer>
-    <b>Reading the map.</b> One dimension → countries are coloured by its value. Tick <b>Compare</b> to hold two or three at once: each country then carries its numbers stacked and coloured by dimension, over a wash in the hue of whichever of the selected dimensions is <i>strongest</i> there — because one shape cannot honestly hold three values. Scroll or drag to zoom; numbers appear as space allows.
+    <p class="reading"><b>Reading the map.</b> One dimension → countries are coloured by its value. Tick <b>Compare</b> to hold two or three at once: each country then carries its numbers stacked and coloured by dimension, over a wash in the hue of whichever of the selected dimensions is <i>strongest</i> there — because one shape cannot honestly hold three values. Scroll or drag to zoom; numbers appear as space allows.</p>
+    <div class="gaps"><b>Gaps in the source.</b> 211 countries and territories; 43 too small to draw are shown as dots. Ethnic is missing for 24 (incl. Yemen, Palestine, Comoros, Timor-Leste), linguistic for 15 (incl. Serbia, Cuba, Rwanda, Haiti), religious for 1 (Serbia). Missing is drawn as hatch, never as zero.</div>
   </footer>
 
   <div class="credits">
