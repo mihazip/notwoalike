@@ -124,6 +124,11 @@ h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
   position:absolute; left:12px; top:10px; z-index:2; pointer-events:none;
   font-size:11px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase;
 }
+.fsbtn{position:absolute; right:10px; top:10px; z-index:3; width:30px; height:30px; display:grid; place-items:center;
+  color:var(--ink2); background:var(--chipBg); border:1px solid var(--hair); border-radius:8px; cursor:pointer}
+.fsbtn:hover{border-color:var(--muted); color:var(--ink)}
+.fsbtn:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+.mapcard:fullscreen{display:flex; align-items:center; justify-content:center; border-radius:0; border:0; width:100%; height:100%}
 .geo path, .geo circle{transition:fill .18s ease}
 .hoverline{fill:none; stroke:var(--ink); stroke-width:1.1px; pointer-events:none; vector-effect:non-scaling-stroke}
 
@@ -155,7 +160,10 @@ h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
 
 footer{margin-top:22px; padding-top:16px; border-top:1px solid var(--hair2); font-size:12px; color:var(--muted); max-width:74ch}
 footer b{color:var(--ink2); font-weight:600}
-footer .gaps{margin-top:6px}
+.under{display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px 48px; align-items:start}
+.under .gaps{margin-top:14px; font-size:12px; color:var(--muted); max-width:74ch}
+.under .gaps b{color:var(--ink2); font-weight:600}
+@media (max-width:760px){ .under{grid-template-columns:1fr} .under .gaps{margin-top:0} }
 
 .credits{
   margin-top:26px; border:1px solid var(--hair); border-radius:10px;
@@ -240,14 +248,17 @@ footer .gaps{margin-top:6px}
 
   <div class="mapcard">
     <div class="mode-note" id="modenote"></div>
+    <button id="zfs" class="fsbtn" title="Fullscreen" aria-label="Fullscreen map"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4"/></svg></button>
     <svg id="map" role="img" aria-label="World map of ethnic, linguistic and religious fractionalization"></svg>
   </div>
 
-  <div class="legend" id="legend"></div>
+  <div class="under">
+    <div class="legend" id="legend"></div>
+    <div class="gaps"><b>Gaps in the source.</b> 211 countries and territories; 43 too small to draw are shown as dots. Ethnic is missing for 24 (incl. Yemen, Palestine, Comoros, Timor-Leste), linguistic for 15 (incl. Serbia, Cuba, Rwanda, Haiti), religious for 1 (Serbia). Missing is drawn as hatch, never as zero.</div>
+  </div>
 
   <footer>
     <b>Reading the map.</b> One dimension → countries are coloured by its value. Tick <b>Compare</b> to hold two or three at once: each country then carries its numbers stacked and coloured by dimension, over a wash in the hue of whichever of the selected dimensions is <i>strongest</i> there — because one shape cannot honestly hold three values. Scroll or drag to zoom; numbers appear as space allows.
-    <div class="gaps"><b>Gaps in the source.</b> 211 countries and territories; 43 too small to draw are shown as dots. Ethnic is missing for 24 (incl. Yemen, Palestine, Comoros, Timor-Leste), linguistic for 15 (incl. Serbia, Cuba, Rwanda, Haiti), religious for 1 (Serbia). Missing is drawn as hatch, never as zero.</div>
   </footer>
 
   <div class="credits">
@@ -364,7 +375,7 @@ const graticule = d3.geoGraticule10();
 let W = 960, H = 500, t = d3.zoomIdentity;
 
 // label anchor = centroid of the feature's largest ring, so the USA doesn't sit in the Pacific
-function anchorOf(f){
+function anchorOf(f, path){
   if (f.geometry.type === "Polygon") return path.centroid(f);
   let best=null, bestA=-1;
   for (const poly of f.geometry.coordinates){
@@ -379,13 +390,20 @@ let fillOf = () => "var(--land)";
 let sphereSel, gratSel, cSel, dSel;
 
 function layout(){
-  const box = document.querySelector(".mapcard").getBoundingClientRect();
+  const card = document.querySelector(".mapcard");
+  const box = card.getBoundingClientRect();
   W = Math.max(320, box.width);
-  // fit width first, then let the projection's own aspect ratio set the height —
-  // Robinson, Winkel, Natural Earth and Equal Earth are all shaped differently
-  proj.fitWidth(W - 12, {type:"Sphere"});
-  const b = d3.geoPath(proj).bounds({type:"Sphere"});
-  H = Math.round(b[1][1] - b[0][1] + 16);
+  if (document.fullscreenElement === card){
+    // fullscreen: fit inside the screen, whichever of width/height binds first
+    H = Math.round(box.height);
+    proj.fitSize([W - 12, H - 16], {type:"Sphere"});
+  } else {
+    // fit width first, then let the projection's own aspect ratio set the height —
+    // Robinson, Winkel, Natural Earth and Equal Earth are all shaped differently
+    proj.fitWidth(W - 12, {type:"Sphere"});
+    const b = d3.geoPath(proj).bounds({type:"Sphere"});
+    H = Math.round(b[1][1] - b[0][1] + 16);
+  }
   path = d3.geoPath(proj);
   proj.translate([W/2, H/2]);
   svg.attr("width",W).attr("height",H).attr("viewBox",`0 0 ${W} ${H}`);
@@ -398,8 +416,8 @@ function layout(){
   items = [];
   feats.forEach(f=>{
     const row = byId.get(String(f.id)); if(!row) return;
-    const p = anchorOf(f); if(!p || isNaN(p[0])) return;
-    items.push({row, pos:p, prio:path.area(f), dot:false});
+    const p = anchorOf(f, path); if(!p || isNaN(p[0])) return;
+    items.push({row, f, pos:p, bb:path.bounds(f), prio:path.area(f), dot:false});
   });
   dots.forEach(r=> items.push({row:r, pos:proj(r.xy), prio:260, dot:true}));
   items.sort((a,b)=>b.prio-a.prio);
@@ -435,12 +453,27 @@ function drawLabels(){
   gLab.selectAll("*").remove();
   if (sel.size < 2) return;
   const keys = DIMS.filter(d=>sel.has(d.k)).map(d=>d.k);
-  const lineH = 10.5, fs = 10, boxW = 22, boxH = keys.length*lineH + 3;
+  // type grows when zoomed out (and on wide maps) so the numbers stay readable; capped so labels still fit
+  const sc = Math.min(1.7, Math.max(1, (W/960)*(1.45 - 0.22*Math.log2(t.k))));
+  const lineH = 10.5*sc, fs = 10*sc, boxW = 22*sc, boxH = keys.length*lineH + 3;
+  // zoomed in: re-anchor each label at the centre of the part of the country still on screen
+  const k = t.k;
+  const pv = k > 1.05 ? d3.geoPath(proj.copy().scale(proj.scale()*k)
+      .translate([t.x + k*proj.translate()[0], t.y + k*proj.translate()[1]])
+      .clipExtent([[0,0],[W,H]])) : null;
   const placed = [];
   const hit = (x,y,w,h) => placed.some(p => x < p[0]+p[2] && x+w > p[0] && y < p[1]+p[3] && y+h > p[1]);
 
-  for (const it of items){
-    const p = t.apply(it.pos);
+  const order = items.map(it=>{
+    if (!pv || it.dot) return {it, p:t.apply(it.pos), prio:it.prio};
+    const [[x0,y0],[x1,y1]] = it.bb;
+    if (t.applyX(x1) < 0 || t.applyX(x0) > W || t.applyY(y1) < 0 || t.applyY(y0) > H) return null;
+    const a = anchorOf(it.f, pv);
+    if (!a || isNaN(a[0])) return {it, p:t.apply(it.pos), prio:it.prio};
+    return {it, p:a, prio:it.prio};
+  }).filter(Boolean);
+
+  for (const {it, p} of order){
     if (p[0] < -30 || p[0] > W+30 || p[1] < -20 || p[1] > H+20) continue;
     const x = it.dot ? p[0]+5 : p[0]-boxW/2;
     const y = p[1]-boxH/2;
@@ -570,6 +603,16 @@ document.getElementById("proj").addEventListener("change", e=>{
 });
 document.getElementById("zin").onclick    = ()=> svg.transition().duration(220).call(zoom.scaleBy, 1.6);
 document.getElementById("zout").onclick   = ()=> svg.transition().duration(220).call(zoom.scaleBy, 1/1.6);
+const card = document.querySelector(".mapcard");
+document.getElementById("zfs").onclick = ()=>{
+  if (document.fullscreenElement) document.exitFullscreen();
+  else card.requestFullscreen?.();
+};
+// the tooltip is position:fixed in <body>, which fullscreen hides; move it inside while fullscreen
+document.addEventListener("fullscreenchange", ()=>{
+  (document.fullscreenElement === card ? card : document.body).appendChild(tip);
+  redraw();
+});
 document.getElementById("zreset").onclick = ()=> svg.transition().duration(280).call(zoom.transform, d3.zoomIdentity);
 
 function redraw(){ layout(); gZoom.attr("transform", t); dSel.attr("r",3.4/Math.pow(t.k,0.85)); paint(); }
