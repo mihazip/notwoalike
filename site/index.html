@@ -85,7 +85,7 @@ h1{
 }
 h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
   font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; letter-spacing:.12em;}
-.themesw{margin-left:auto; align-self:flex-start; position:relative; width:48px; height:26px; padding:0; border-radius:13px; cursor:pointer;
+.themesw{flex:none; margin-left:6px; position:relative; width:48px; height:26px; padding:0; border-radius:13px; cursor:pointer;
   border:1px solid var(--hair); background:linear-gradient(180deg, rgba(0,0,0,.20), rgba(0,0,0,.06)), var(--chipBg);
   box-shadow:inset 0 1.5px 3px rgba(0,0,0,.35), inset 0 -1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(255,255,255,.06); opacity:.7; transition:opacity .15s}
 .themesw:hover,.themesw:focus-visible{opacity:1}
@@ -223,8 +223,12 @@ footer p,footer .gaps{margin:0; max-width:74ch}
 /* desktop: full width, and the title bar, map and legend fill the first screen */
 @media (min-width:1000px) and (min-height:560px){
   .wrap{max-width:none; padding:20px 28px 40px}
+  .wrap{display:flex; flex-direction:column}
+  .stage{order:1}
+  header.masthead{order:2; margin:36px 0 20px}
+  footer{order:3}
+  .credits{order:4}
   .stage{height:calc(100vh - 20px); padding-bottom:14px; min-height:540px; display:flex; flex-direction:column}
-  header.masthead{margin-bottom:14px}
   .mapcard{flex:1 1 0; min-height:0}
   #map{position:absolute; inset:0; width:100%; height:100%}
 }
@@ -242,16 +246,12 @@ footer p,footer .gaps{margin:0; max-width:74ch}
 </head>
 <body>
 <div class="wrap">
-  <div class="stage">
   <header class="masthead">
     <h1><span class="sub">Data by Alesina, Devleeschauwer, Easterly, Kurlat &amp; Wacziarg · 2003</span>Fractionalization Atlas</h1>
     <p class="defn">Each index is the probability that <b>two people drawn at random</b> from a country belong to different groups. <b>0</b> means everyone shares the trait; <b>100</b> means almost no two people match.</p>
-    <button id="theme" class="themesw" role="switch" aria-checked="false" aria-label="Dark mode" title="Light / dark"><span class="knob">
-      <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
-      <svg class="moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.2 10.3A5.8 5.8 0 0 1 5.7 2.8a5.8 5.8 0 1 0 7.5 7.5z"/></svg>
-    </span></button>
   </header>
 
+  <div class="stage">
   <div class="controls">
     <span class="ctl-label">Show</span>
     <button class="chip" id="chip-e" data-k="e" aria-pressed="true" style="--dot:var(--eKey)"><span class="sw"></span>Ethnic</button>
@@ -270,6 +270,10 @@ footer p,footer .gaps{margin:0; max-width:74ch}
       <button id="zout" title="Zoom out" aria-label="Zoom out">−</button>
       <button id="zreset">Reset</button>
     </div>
+    <button id="theme" class="themesw" role="switch" aria-checked="false" aria-label="Dark mode" title="Light / dark"><span class="knob">
+      <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      <svg class="moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.2 10.3A5.8 5.8 0 0 1 5.7 2.8a5.8 5.8 0 1 0 7.5 7.5z"/></svg>
+    </span></button>
   </div>
 
   <div class="mapcard">
@@ -485,32 +489,43 @@ function drawLabels(){
   const placed = [];
   const hit = (x,y,w,h) => placed.some(p => x < p[0]+p[2] && x+w > p[0] && y < p[1]+p[3] && y+h > p[1]);
 
+  const box = (fs, chars) => [fs*(0.6*chars+0.3), n*fs*1.05 + fs*0.3];
   for (const it of items){
-    let p, fs = minFs;
+    const chars = Math.max(2, ...keys.map(k => String(fmt(it.row[k])).length));
+    let p, fs, boxW, boxH;
     if (it.dot){
       p = t.apply(it.pos);
       if (p[0] < -30 || p[0] > W+30 || p[1] < -20 || p[1] > H+20) continue;
+      fs = minFs; [boxW, boxH] = box(fs, chars);
+      if (hit(p[0]+5, p[1]-boxH/2, boxW, boxH)) continue;
     } else {
       // on-screen part of the country's main ring
       const x0 = Math.max(0, t.applyX(it.bb[0][0])), x1 = Math.min(W, t.applyX(it.bb[1][0]));
       const y0 = Math.max(0, t.applyY(it.bb[0][1])), y1 = Math.min(H, t.applyY(it.bb[1][1]));
       if (x1 - x0 < 4 || y1 - y0 < 4) continue;
-      // grow with the room available (bbox overstates diagonal shapes, so only use ~65% of it)
-      const fitW = (x1 - x0) * 0.65 / 1.75, fitH = (y1 - y0) * 0.65 / (n * 1.1);
-      fs = Math.min(maxFs, Math.max(minFs, Math.min(fitW, fitH)));
-      // the whole label must sit on screen: if the centroid is too close to an edge, use the visible part instead
-      const mx = fs*1.05 + 2, my = (n*fs*1.05 + fs*0.3)/2 + 2;
-      p = t.apply(it.pos);
-      if (p[0] < mx || p[0] > W-mx || p[1] < my || p[1] > H-my){
-        p = visibleAnchor(it, Math.max(x0, mx), Math.min(x1, W-mx), Math.max(y0, my), Math.min(y1, H-my));
-        if (!p) continue;
+      // largest size the country has room for (bbox overstates diagonal shapes, so only use ~65% of it) ...
+      const fit = Math.min((x1 - x0) * 0.65 / (0.6*chars+0.3), (y1 - y0) * 0.65 / (n * 1.1));
+      let done = false;
+      // ... and if that collides with a neighbour, retry smaller (down to the minimum) before giving up
+      for (let f = Math.min(maxFs, Math.max(minFs, fit)); !done; f = f > minFs ? Math.max(minFs, f*0.82) : -1){
+        if (f < 0) break;
+        [boxW, boxH] = box(f, chars);
+        const mx = boxW/2 + 2, my = boxH/2 + 2;
+        const c = t.apply(it.pos);
+        const cands = [];
+        if (c[0] >= mx && c[0] <= W-mx && c[1] >= my && c[1] <= H-my) cands.push(c);
+        else {
+          const v = visibleAnchor(it, Math.max(x0, mx), Math.min(x1, W-mx), Math.max(y0, my), Math.min(y1, H-my));
+          if (v) cands.push(v);
+        }
+        for (const q of cands){
+          if (!hit(q[0]-boxW/2, q[1]-boxH/2, boxW, boxH)){ p = q; fs = f; done = true; break; }
+        }
       }
+      if (!done) continue;
     }
-    const lineH = fs*1.05, boxW = fs*2.1, boxH = n*lineH + fs*0.3;
-    const x = it.dot ? p[0]+5 : p[0]-boxW/2;
-    const y = p[1]-boxH/2;
-    if (hit(x,y,boxW,boxH)) continue;
-    placed.push([x,y,boxW,boxH]);
+    const lineH = fs*1.05;
+    placed.push([it.dot ? p[0]+5 : p[0]-boxW/2, p[1]-boxH/2, boxW, boxH]);
     const g = gLab.append("g").attr("transform",`translate(${it.dot? p[0]+5 : p[0]},${p[1]})`);
     keys.forEach((k,i)=>{
       const v = it.row[k];
