@@ -230,6 +230,7 @@ footer p,footer .gaps{margin:0; max-width:74ch}
   footer{order:3}
   .credits{order:4}
   .stage{height:calc(100vh - 20px); padding-bottom:14px; min-height:540px; display:flex; flex-direction:column}
+  .legend{min-height:74px}   /* room for the title beside it, even with a single scale */
   .mapcard{flex:1 1 0; min-height:0}
   #map{position:absolute; inset:0; width:100%; height:100%}
 }
@@ -502,7 +503,7 @@ function drawLabels(){
     if (it.dot){
       p = t.apply(it.pos);
       if (p[0] < -30 || p[0] > W+30 || p[1] < -20 || p[1] > H+20) continue;
-      fs = minFs; [boxW, boxH] = box(fs, chars);
+      fs = minFs*1.25; [boxW, boxH] = box(fs, chars);
       if (hit(p[0]+5, p[1]-boxH/2, boxW, boxH)) continue;
     } else {
       // on-screen part of the country's main ring
