@@ -487,7 +487,9 @@ function drawLabels(){
   // smallest size we ever draw (a little larger on big screens), and the largest a label may grow to
   const minFs = Math.max(10, Math.min(13, W/110)), maxFs = 40;
   const placed = [];
-  const hit = (x,y,w,h) => placed.some(p => x < p[0]+p[2] && x+w > p[0] && y < p[1]+p[3] && y+h > p[1]);
+  // labels need breathing room (the halo stroke bleeds past the box), so collisions are tested with a gap
+  const gap = Math.max(3, minFs*0.4);
+  const hit = (x,y,w,h) => placed.some(p => x < p[0]+p[2]+gap && x+w+gap > p[0] && y < p[1]+p[3]+gap && y+h+gap > p[1]);
 
   const box = (fs, chars) => [fs*(0.6*chars+0.3), n*fs*1.05 + fs*0.3];
   for (const it of items){
@@ -598,8 +600,13 @@ function showTip(ev, r){
              `<span class="tv${has(v)?"":" nd"}">${has(v)?fmt(v):"no data"}</span></div>`;
     }).join("");
   tip.style.opacity = 1;
-  tip.style.left = ev.clientX + "px";
-  tip.style.top  = (ev.clientY - 14) + "px";
+  // keep the whole tooltip on screen: clamp horizontally, flip below the cursor near the top
+  const tw = tip.offsetWidth, th = tip.offsetHeight, m = 6;
+  const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+  const x = Math.min(Math.max(ev.clientX, tw/2 + m), Math.max(tw/2 + m, vw - tw/2 - m));
+  const below = ev.clientY - 14 - th < m;
+  tip.style.left = x + "px";
+  tip.style.top  = Math.min(below ? ev.clientY + 22 + th : ev.clientY - 14, vh - m) + "px";
 }
 function hideTip(){ tip.style.opacity = 0; }
 
