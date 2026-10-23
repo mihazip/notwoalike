@@ -85,6 +85,18 @@ h1{
 }
 h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
   font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; letter-spacing:.12em;}
+.themesw{margin-left:auto; align-self:flex-start; position:relative; width:48px; height:26px; padding:0; border-radius:13px; cursor:pointer;
+  border:1px solid var(--hair); background:linear-gradient(180deg, rgba(0,0,0,.20), rgba(0,0,0,.06)), var(--chipBg);
+  box-shadow:inset 0 1.5px 3px rgba(0,0,0,.35), inset 0 -1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(255,255,255,.06); opacity:.7; transition:opacity .15s}
+.themesw:hover,.themesw:focus-visible{opacity:1}
+.themesw:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+.themesw .knob{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; color:var(--muted);
+  background:radial-gradient(circle at 35% 28%, var(--panel), var(--surface) 85%);
+  box-shadow:0 1px 2px rgba(0,0,0,.45), 0 0 0 1px var(--hair), inset 0 1px 0 rgba(255,255,255,.14);
+  transition:transform .22s cubic-bezier(.3,.7,.3,1)}
+.themesw[aria-checked="true"] .knob{transform:translateX(22px)}
+.themesw svg{width:12px; height:12px; position:absolute; transition:opacity .18s}
+.themesw .moon{opacity:0} .themesw[aria-checked="true"] .moon{opacity:1} .themesw[aria-checked="true"] .sun{opacity:0}
 .defn{max-width:46ch; font-size:13.5px; color:var(--ink2); margin:0;}
 .defn b{color:var(--ink); font-weight:600;}
 
@@ -223,6 +235,10 @@ footer p,footer .gaps{margin:0; max-width:74ch}
   <header class="masthead">
     <h1><span class="sub">Data by Alesina, Devleeschauwer, Easterly, Kurlat &amp; Wacziarg · 2003</span>Fractionalization Atlas</h1>
     <p class="defn">Each index is the probability that <b>two people drawn at random</b> from a country belong to different groups. <b>0</b> means everyone shares the trait; <b>100</b> means almost no two people match.</p>
+    <button id="theme" class="themesw" role="switch" aria-checked="false" aria-label="Dark mode" title="Light / dark"><span class="knob">
+      <svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+      <svg class="moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.2 10.3A5.8 5.8 0 0 1 5.7 2.8a5.8 5.8 0 1 0 7.5 7.5z"/></svg>
+    </span></button>
   </header>
 
   <div class="controls">
@@ -372,7 +388,7 @@ const graticule = d3.geoGraticule10();
 let W = 960, H = 500, t = d3.zoomIdentity;
 
 // label anchor = centroid of the feature's largest ring, so the USA doesn't sit in the Pacific
-function anchorOf(f, path){
+function anchorOf(f){
   if (f.geometry.type === "Polygon") return path.centroid(f);
   let best=null, bestA=-1;
   for (const poly of f.geometry.coordinates){
@@ -413,8 +429,8 @@ function layout(){
   items = [];
   feats.forEach(f=>{
     const row = byId.get(String(f.id)); if(!row) return;
-    const p = anchorOf(f, path); if(!p || isNaN(p[0])) return;
-    items.push({row, f, pos:p, bb:path.bounds(f), prio:path.area(f), dot:false});
+    const p = anchorOf(f); if(!p || isNaN(p[0])) return;
+    items.push({row, pos:p, prio:path.area(f), dot:false});
   });
   dots.forEach(r=> items.push({row:r, pos:proj(r.xy), prio:260, dot:true}));
   items.sort((a,b)=>b.prio-a.prio);
@@ -450,27 +466,12 @@ function drawLabels(){
   gLab.selectAll("*").remove();
   if (sel.size < 2) return;
   const keys = DIMS.filter(d=>sel.has(d.k)).map(d=>d.k);
-  // type grows when zoomed out (and on wide maps) so the numbers stay readable; capped so labels still fit
-  const sc = Math.min(1.7, Math.max(1, (W/960)*(1.45 - 0.22*Math.log2(t.k))));
-  const lineH = 10.5*sc, fs = 10*sc, boxW = 22*sc, boxH = keys.length*lineH + 3;
-  // zoomed in: re-anchor each label at the centre of the part of the country still on screen
-  const k = t.k;
-  const pv = k > 1.05 ? d3.geoPath(proj.copy().scale(proj.scale()*k)
-      .translate([t.x + k*proj.translate()[0], t.y + k*proj.translate()[1]])
-      .clipExtent([[0,0],[W,H]])) : null;
+  const lineH = 10.5, fs = 10, boxW = 22, boxH = keys.length*lineH + 3;
   const placed = [];
   const hit = (x,y,w,h) => placed.some(p => x < p[0]+p[2] && x+w > p[0] && y < p[1]+p[3] && y+h > p[1]);
 
-  const order = items.map(it=>{
-    if (!pv || it.dot) return {it, p:t.apply(it.pos), prio:it.prio};
-    const [[x0,y0],[x1,y1]] = it.bb;
-    if (t.applyX(x1) < 0 || t.applyX(x0) > W || t.applyY(y1) < 0 || t.applyY(y0) > H) return null;
-    const a = anchorOf(it.f, pv);
-    if (!a || isNaN(a[0])) return {it, p:t.apply(it.pos), prio:it.prio};
-    return {it, p:a, prio:it.prio};
-  }).filter(Boolean);
-
-  for (const {it, p} of order){
+  for (const it of items){
+    const p = t.apply(it.pos);
     if (p[0] < -30 || p[0] > W+30 || p[1] < -20 || p[1] > H+20) continue;
     const x = it.dot ? p[0]+5 : p[0]-boxW/2;
     const y = p[1]-boxH/2;
@@ -616,7 +617,17 @@ function redraw(){ layout(); gZoom.attr("transform", t); dSel.attr("r",3.4/Math.
 redraw();
 new ResizeObserver(()=>redraw()).observe(document.querySelector(".mapcard"));
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>{ buildScales(); paint(); });
-new MutationObserver(()=>{ buildScales(); paint(); })
+const themeBtn = document.getElementById("theme");
+const syncTheme = ()=> themeBtn.setAttribute("aria-checked", isDark() ? "true" : "false");
+try { const saved = localStorage.getItem("theme"); if (saved === "light" || saved === "dark") document.documentElement.setAttribute("data-theme", saved); } catch(e){}
+syncTheme();
+themeBtn.addEventListener("click", ()=>{
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch(e){}
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncTheme);
+new MutationObserver(()=>{ syncTheme(); buildScales(); paint(); })
   .observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 })();
 </script>
