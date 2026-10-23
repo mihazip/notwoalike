@@ -507,22 +507,22 @@ function drawLabels(){
       if (x1 - x0 < 4 || y1 - y0 < 4) continue;
       // largest size the country has room for (bbox overstates diagonal shapes, so only use ~65% of it) ...
       const fit = Math.min((x1 - x0) * 0.65 / (0.6*chars+0.3), (y1 - y0) * 0.65 / (n * 1.1));
-      let done = false;
+      let done = false, spots;
       // ... and if that collides with a neighbour, retry smaller (down to the minimum) before giving up
       for (let f = Math.min(maxFs, Math.max(minFs, fit)); !done; f = f > minFs ? Math.max(minFs, f*0.82) : -1){
         if (f < 0) break;
         [boxW, boxH] = box(f, chars);
         const mx = boxW/2 + 2, my = boxH/2 + 2;
         const c = t.apply(it.pos);
-        const cands = [];
-        if (c[0] >= mx && c[0] <= W-mx && c[1] >= my && c[1] <= H-my) cands.push(c);
-        else {
-          const v = visibleAnchor(it, Math.max(x0, mx), Math.min(x1, W-mx), Math.max(y0, my), Math.min(y1, H-my));
-          if (v) cands.push(v);
-        }
-        for (const q of cands){
-          if (!hit(q[0]-boxW/2, q[1]-boxH/2, boxW, boxH)){ p = q; fs = f; done = true; break; }
-        }
+        const inView = q => q[0] >= mx && q[0] <= W-mx && q[1] >= my && q[1] <= H-my;
+        const free = q => !hit(q[0]-boxW/2, q[1]-boxH/2, boxW, boxH);
+        // preferred spot is the centroid; if it's taken or off screen, try other points inside the country
+        if (inView(c) && free(c)){ p = c; fs = f; done = true; continue; }
+        spots ??= insidePoints(it, x0, x1, y0, y1);
+        const c0 = [(x0+x1)/2, (y0+y1)/2];
+        const q = spots.filter(s => inView(s) && free(s))
+          .sort((a,b)=> Math.hypot(a[0]-c0[0],a[1]-c0[1]) - Math.hypot(b[0]-c0[0],b[1]-c0[1]))[0];
+        if (q){ p = q; fs = f; done = true; }
       }
       if (!done) continue;
     }
@@ -547,18 +547,16 @@ function drawLabels(){
   }
 }
 
-// a point inside the country, as near as possible to the middle of its on-screen bounding box
-function visibleAnchor(it, x0, x1, y0, y1){
-  if (x1 <= x0 || y1 <= y0) return null;
-  const cx = (x0+x1)/2, cy = (y0+y1)/2;
-  const cand = [[cx,cy]];
-  for (let i=1;i<=4;i++) for (let j=1;j<=4;j++) cand.push([x0+(x1-x0)*i/5, y0+(y1-y0)*j/5]);
-  cand.sort((a,b)=> Math.hypot(a[0]-cx,a[1]-cy) - Math.hypot(b[0]-cx,b[1]-cy));
-  for (const c of cand){
+// screen points on a grid over the country's on-screen bounding box that fall inside the country
+function insidePoints(it, x0, x1, y0, y1){
+  const out = [];
+  if (x1 <= x0 || y1 <= y0) return out;
+  for (let i=0;i<=6;i++) for (let j=0;j<=6;j++){
+    const c = [x0+(x1-x0)*(i+.5)/7, y0+(y1-y0)*(j+.5)/7];
     const ll = proj.invert(t.invert(c));
-    if (ll && !isNaN(ll[0]) && d3.geoContains(it.f, ll)) return c;
+    if (ll && !isNaN(ll[0]) && d3.geoContains(it.f, ll)) out.push(c);
   }
-  return null;
+  return out;
 }
 
 function drawLegend(){
@@ -630,13 +628,13 @@ dSel = gZoom.append("g").selectAll("circle").data(dots).join("circle")
 
 const zoom = d3.zoom().scaleExtent([1,40])
   .on("start", ()=> svg.classed("dragging",true))
-  .on("end",   ()=> svg.classed("dragging",false))
+  .on("end",   ()=> { svg.classed("dragging",false); drawLabels(); })   // labels are placed once motion stops
   .on("zoom", ev => {
     t = ev.transform;
     gZoom.attr("transform", t);
     dSel.attr("r", 3.4/Math.pow(t.k,0.85));
     hideTip();
-    drawLabels();
+    // labels stay where they are while the map moves; drawLabels() runs on "end"
   });
 svg.call(zoom).on("dblclick.zoom", null);
 
