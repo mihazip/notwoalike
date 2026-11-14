@@ -133,10 +133,6 @@ h1 .sub{display:block; font-family:"IBM Plex Sans",sans-serif; font-weight:400;
 }
 #map{display:block; width:100%; cursor:grab; touch-action:none;}
 #map.dragging{cursor:grabbing}
-.mode-note{
-  position:absolute; left:12px; top:10px; z-index:2; pointer-events:none;
-  font-size:11px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase;
-}
 .fsbtn{position:absolute; right:10px; top:10px; z-index:3; width:30px; height:30px; display:grid; place-items:center;
   color:var(--ink2); background:var(--chipBg); border:1px solid var(--hair); border-radius:8px; cursor:pointer}
 .fsbtn:hover{border-color:var(--muted); color:var(--ink)}
@@ -279,7 +275,6 @@ footer p,footer .gaps{margin:0; max-width:74ch}
   </div>
 
   <div class="mapcard">
-    <div class="mode-note" id="modenote"></div>
     <button id="zfs" class="fsbtn" title="Fullscreen" aria-label="Fullscreen map"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4"/></svg></button>
     <svg id="map" role="img" aria-label="World map of ethnic, linguistic and religious fractionalization"></svg>
   </div>
@@ -475,10 +470,6 @@ function paint(){
       .attr("stroke", one ? "var(--landStroke)" : "var(--bord)");
   dSel.attr("fill", dotFill)
       .attr("stroke", "var(--halo)");
-  document.getElementById("modenote").textContent =
-    one ? DIMS.find(d=>d.k===one).name + " fractionalization · 0–100"
-        : DIMS.filter(d=>sel.has(d.k)).map(d=>d.name).join(" / ")
-          + " · 0–100 · fill = strongest";
   drawLabels();
   drawLegend();
 }
